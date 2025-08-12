@@ -1,0 +1,32 @@
+# Environment
+.env
+.venv/
+
+# Logs
+*.log
+fenrir.log
+
+# Data
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.idea/
+.vscode/

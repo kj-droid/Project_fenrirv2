@@ -15,7 +15,8 @@ packages = [{include = "fenrir"}]
 fenrir = "fenrir.cli:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10, <3.13" 
+# Updated to allow for the latest stable Python version (3.13)
+python = ">=3.10, <3.14" 
 python-nmap = "^0.7.1"
 requests = "^2.31.0"
 beautifulsoup4 = "^4.12.3"
@@ -27,8 +28,8 @@ httpx = "^0.27.0"
 aiodns = "^3.2.0"
 python-whois = "^0.8.0"
 webtech = "^1.2.1"
-asyncio-nmap = "^0.1.1" # For async service detection
-nvdlib = "^1.1.1"      # For CVE lookups
+asyncio-nmap = "^0.1.1"
+nvdlib = "^1.1.1"
 
 [tool.poetry.group.dev.dependencies]
 # Dependencies for development, testing, and code quality.

@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 # Fenrir Updater Script (Robust Version)
-# This script automates updating Fenrir by ensuring the correct
-# Python environment is used for installation.
+# This script automates updating Fenrir by finding and using the correct
+# Python interpreter from the project's virtual environment.
 #
 # Usage: ./update_fenrir.sh
 
@@ -34,28 +34,37 @@ else
     echo "Git pull successful."
 fi
 
-# 3. Configure the project to use a compatible Python version
-echo "\n${yellow}Step 2: Configuring project's Python 3.12 environment...${normal}"
+# 3. Find the correct Python interpreter from the Poetry environment
+echo "\n${yellow}Step 2: Locating and configuring project's Python 3.12 environment...${normal}"
+# Ensure the environment is configured for python3.12. This is safe to run multiple times.
 poetry env use python3.12 > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "${bold}${red}Error: Could not configure the Python 3.12 environment.${normal}"
-    echo "Please ensure Python 3.12 is installed and accessible."
-    error_log+=" - Failed to set Python 3.12 for the project.\n"
+# Get the full path to the python executable inside the virtual environment
+PYTHON_EXEC=$(poetry env info --path)/bin/python
+
+if [ ! -f "$PYTHON_EXEC" ]; then
+    echo "${bold}${red}Error: Could not find the Python executable in the virtual environment.${normal}"
+    echo "Please ensure Python 3.12 is installed and that 'poetry env use python3.12' was successful."
+    error_log+=" - Could not locate the project's Python interpreter.\n"
+else
+    echo "Found correct Python interpreter at: $PYTHON_EXEC"
 fi
 
-# 4. Lock and Install dependencies
+# 4. Lock and Install dependencies using the correct interpreter
 echo "\n${yellow}Step 3: Resolving and installing dependencies...${normal}"
-# Use the system's poetry command, which will act on the configured environment.
-poetry lock
-if [ $? -ne 0 ]; then
-    echo "${bold}${red}Error: 'poetry lock' failed. There is a dependency conflict in pyproject.toml.${normal}"
-    error_log+=" - 'poetry lock' failed to resolve dependencies.\n"
-else
-    echo "Dependencies locked successfully. Now installing..."
-    poetry install
+if [ -z "$error_log" ]; then # Only proceed if we found the python executable
+    # Use the specific python executable to run poetry's module commands.
+    # This bypasses any system path issues.
+    "$PYTHON_EXEC" -m poetry lock
     if [ $? -ne 0 ]; then
-        echo "${bold}${red}Error: 'poetry install' failed. The application may not be runnable.${normal}"
-        error_log+=" - 'poetry install' failed.\n"
+        echo "${bold}${red}Error: 'poetry lock' failed. There is a dependency conflict in pyproject.toml.${normal}"
+        error_log+=" - 'poetry lock' failed to resolve dependencies.\n"
+    else
+        echo "Dependencies locked successfully. Now installing..."
+        "$PYTHON_EXEC" -m poetry install
+        if [ $? -ne 0 ]; then
+            echo "${bold}${red}Error: 'poetry install' failed. The application may not be runnable.${normal}"
+            error_log+=" - 'poetry install' failed.\n"
+        fi
     fi
 fi
 

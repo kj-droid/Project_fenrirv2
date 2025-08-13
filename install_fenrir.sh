@@ -19,7 +19,7 @@ red=$(tput setaf 1)
 # --- Configuration ---
 # !!! IMPORTANT !!!
 # Replace this URL with the actual URL of your Fenrir GitHub repository.
-REPO_URL="https://github.com/kj-droid/Project_fenrirv2.git"
+REPO_URL="https://github.com/kj-droid/fenrir.git"
 PROJECT_DIR="Project_fenrirv2"
 COMMAND_NAME="fenrir"
 

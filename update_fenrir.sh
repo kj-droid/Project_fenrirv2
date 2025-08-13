@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 # Fenrir Updater Script (Robust Version)
-# This script automates updating Fenrir by finding and using the correct
-# Python interpreter from the project's virtual environment.
+# This script automates updating Fenrir by ensuring the correct
+# Python environment is used for installation.
 #
 # Usage: ./update_fenrir.sh
 
@@ -34,43 +34,43 @@ else
     echo "Git pull successful."
 fi
 
-# 3. Find the correct Python interpreter from the Poetry environment
-echo "\n${yellow}Step 2: Locating and configuring project's Python 3.12 environment...${normal}"
-# Ensure the environment is configured for python3.12. This is safe to run multiple times.
+# 3. Configure the project to use a compatible Python version
+echo "\n${yellow}Step 2: Configuring project's Python 3.12 environment...${normal}"
 poetry env use python3.12 > /dev/null 2>&1
-# Get the full path to the python executable inside the virtual environment
-PYTHON_EXEC=$(poetry env info --path)/bin/python
-
-if [ ! -f "$PYTHON_EXEC" ]; then
-    echo "${bold}${red}Error: Could not find the Python executable in the virtual environment.${normal}"
-    echo "Please ensure Python 3.12 is installed and that 'poetry env use python3.12' was successful."
-    error_log+=" - Could not locate the project's Python interpreter.\n"
-else
-    echo "Found correct Python interpreter at: $PYTHON_EXEC"
+if [ $? -ne 0 ]; then
+    echo "${bold}${red}Error: Could not configure the Python 3.12 environment.${normal}"
+    echo "Please ensure Python 3.12 is installed and accessible."
+    error_log+=" - Failed to set Python 3.12 for the project.\n"
 fi
 
-# 4. Lock and Install dependencies using the correct interpreter
+# 4. Lock and Install dependencies
 echo "\n${yellow}Step 3: Resolving and installing dependencies...${normal}"
-if [ -z "$error_log" ]; then # Only proceed if we found the python executable
-    # Use the specific python executable to run poetry's module commands.
-    # This bypasses any system path issues.
-    "$PYTHON_EXEC" -m poetry lock
+# Use the system's poetry command, which will act on the configured environment.
+poetry lock
+if [ $? -ne 0 ]; then
+    echo "${bold}${red}Error: 'poetry lock' failed. There is a dependency conflict in pyproject.toml.${normal}"
+    error_log+=" - 'poetry lock' failed to resolve dependencies.\n"
+else
+    echo "Dependencies locked successfully. Now installing..."
+    poetry install
     if [ $? -ne 0 ]; then
-        echo "${bold}${red}Error: 'poetry lock' failed. There is a dependency conflict in pyproject.toml.${normal}"
-        error_log+=" - 'poetry lock' failed to resolve dependencies.\n"
-    else
-        echo "Dependencies locked successfully. Now installing..."
-        "$PYTHON_EXEC" -m poetry install
-        if [ $? -ne 0 ]; then
-            echo "${bold}${red}Error: 'poetry install' failed. The application may not be runnable.${normal}"
-            error_log+=" - 'poetry install' failed.\n"
-        else
-            echo "Installation complete."
-        fi
+        echo "${bold}${red}Error: 'poetry install' failed. The application may not be runnable.${normal}"
+        error_log+=" - 'poetry install' failed.\n"
     fi
 fi
 
-# 5. Final Summary
+# 5. Create a robust runner script
+echo "\n${yellow}Step 4: Creating a reliable run script (run.sh)...${normal}"
+cat << EOF > run.sh
+#!/bin/bash
+# This script runs the Fenrir application using the correct virtual environment.
+"$(poetry env info --path)/bin/python" -m fenrir.cli "\$@"
+EOF
+chmod +x run.sh
+echo "Created 'run.sh'. Use this to start the application."
+
+
+# 6. Final Summary
 echo "\n${bold}${green}--- Fenrir Update Process Finished ---${normal}"
 
 if [ -n "$error_log" ]; then
@@ -79,5 +79,5 @@ if [ -n "$error_log" ]; then
     echo "The application might be in an unstable state."
 else
     echo "${bold}${green}Fenrir has been successfully updated!${normal}"
-    echo "You can now run the scanner with: ${bold}poetry run fenrir --help${normal}"
+    echo "You can now run the scanner with: ${bold}./run.sh --help${normal}"
 fi

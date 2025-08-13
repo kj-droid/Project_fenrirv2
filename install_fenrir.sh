@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# Fenrir All-in-One Installer (with automatic dependency installation)
+# Fenrir All-in-One Installer
 # This script clones the Fenrir repository, installs prerequisites, sets up the
 # environment, and makes the 'fenrir' command available system-wide.
 #
 # Usage:
 # 1. Save this script as install_fenrir.sh
 # 2. Make it executable: chmod +x install_fenrir.sh
-# 3. Run it: sudo ./install_fenrir.sh
+# 3. Run it: ./install_fenrir.sh
 
 # --- Style Functions for better output ---
 bold=$(tput bold)
@@ -25,13 +25,13 @@ COMMAND_NAME="fenrir"
 
 echo "${bold}${green}--- Starting Fenrir Installation ---${normal}"
 
-# --- Step 1: Install Prerequisites ---
+# 1. Check for and install prerequisite commands
 echo "\n${yellow}Step 1: Checking for prerequisites (git, poetry)...${normal}"
 
 # Check for Git
 if ! command -v git &> /dev/null; then
     echo "Git not found. Attempting to install..."
-    apt-get update && apt-get install git -y
+    sudo apt-get update && sudo apt-get install git -y
     if [ $? -ne 0 ]; then
         echo "${bold}${red}Fatal Error: Failed to install git. Please install it manually and run this script again.${normal}"
         exit 1
@@ -44,11 +44,12 @@ fi
 # Check for Poetry
 if ! command -v poetry &> /dev/null; then
     echo "Poetry not found. Attempting to install..."
-    if ! command -v curl &> /dev/null || ! command -v pip3 &> /dev/null; then
-        echo "Installing curl and python3-pip..."
-        apt-get update && apt-get install curl python3-pip -y
+    # Poetry installer requires curl
+    if ! command -v curl &> /dev/null; then
+        echo "curl not found. Attempting to install..."
+        sudo apt-get update && sudo apt-get install curl -y
         if [ $? -ne 0 ]; then
-            echo "${bold}${red}Fatal Error: Failed to install curl/pip3. Please install them manually and run this script again.${normal}"
+            echo "${bold}${red}Fatal Error: Failed to install curl. Please install it manually and run this script again.${normal}"
             exit 1
         fi
     fi
@@ -57,6 +58,7 @@ if ! command -v poetry &> /dev/null; then
         echo "${bold}${red}Fatal Error: Failed to install Poetry. Please try installing it manually from https://python-poetry.org/docs/${normal}"
         exit 1
     fi
+    # Add poetry to the current session's PATH to ensure it's found immediately
     export PATH="$HOME/.local/bin:$PATH"
     echo "${green}Poetry installed successfully.${normal}"
 else
@@ -64,7 +66,7 @@ else
 fi
 
 
-# --- Step 2: Clone the Repository ---
+# 2. Clone the repository
 if [ -d "$PROJECT_DIR" ]; then
     echo "\n${yellow}Project directory '${PROJECT_DIR}' already exists. Skipping clone.${normal}"
 else
@@ -76,9 +78,12 @@ else
     fi
 fi
 
-# --- Step 3: Run the Internal Updater/Installer ---
+# 3. Navigate into the project directory
 cd "$PROJECT_DIR" || exit
+
+# 4. Run the update/install script
 echo "\n${yellow}Step 3: Setting up environment and installing dependencies...${normal}"
+# Ensure the update script is executable
 if [ -f "update_fenrir.sh" ]; then
     chmod +x update_fenrir.sh
     ./update_fenrir.sh
@@ -91,44 +96,30 @@ else
     exit 1
 fi
 
-# --- Step 4: Set File Permissions ---
-echo "\n${yellow}Step 4: Setting file permissions...${normal}"
-# Use SUDO_USER to get the name of the user who invoked sudo
-if [ -n "$SUDO_USER" ]; then
-    echo "Running with sudo. Setting ownership to user '${SUDO_USER}' and permissions for all users."
-    chown -R "$SUDO_USER":"$SUDO_USER" .
-    # u=rwx: Owner can read, write, and execute.
-    # go=r-x: Group and Others can read and execute, but not write.
-    chmod -R u=rwx,go=r-x .
-    echo "Permissions set successfully."
-else
-    echo "${yellow}Not running with sudo. Setting permissions for current user only.${normal}"
-    # Grant read, write, and execute permissions to the current user
-    chmod -R u+rwx .
-fi
-
-
-# --- Step 5: Create the System-Wide Command ---
-echo "\n${yellow}Step 5: Creating the system-wide '${COMMAND_NAME}' command...${normal}"
+# 5. Create the system-wide command
+echo "\n${yellow}Step 4: Creating the system-wide '${COMMAND_NAME}' command...${normal}"
 RUN_SCRIPT_PATH="$(pwd)/run.sh"
 INSTALL_PATH="/usr/local/bin/$COMMAND_NAME"
 
-# Use -f to force overwrite the link if it already exists
+if [ -L "$INSTALL_PATH" ]; then
+    echo "Command '${COMMAND_NAME}' already exists. Removing old link."
+    sudo rm "$INSTALL_PATH"
+fi
+
 echo "Creating symbolic link from ${RUN_SCRIPT_PATH} to ${INSTALL_PATH}"
-ln -sf "$RUN_SCRIPT_PATH" "$INSTALL_PATH"
+# Use sudo to create the link in a system-wide directory
+sudo ln -s "$RUN_SCRIPT_PATH" "$INSTALL_PATH"
+
 if [ $? -ne 0 ]; then
     echo "${bold}${red}Error: Failed to create symbolic link. This usually requires sudo privileges.${normal}"
+    echo "Please try running the command again with sudo, or create the link manually:"
+    echo "sudo ln -s ${RUN_SCRIPT_PATH} ${INSTALL_PATH}"
     exit 1
 fi
+
 echo "Symbolic link created successfully."
 
-# Also set ownership of the symbolic link itself to the original user
-if [ -n "$SUDO_USER" ]; then
-    chown -h "$SUDO_USER":"$SUDO_USER" "$INSTALL_PATH"
-    echo "Ownership of the symbolic link set to user '${SUDO_USER}'."
-fi
-
-# --- Final Summary ---
+# 6. Final Summary
 echo "\n${bold}${green}--- Fenrir Installation Complete! ---${normal}"
 echo "You can now run the scanner from anywhere on your system by simply typing:"
 echo "${bold}${COMMAND_NAME} --help${normal}"

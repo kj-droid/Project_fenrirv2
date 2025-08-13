@@ -92,17 +92,21 @@ else
 fi
 
 # --- Step 4: Set File Permissions ---
-echo "\n${yellow}Step 4: Setting file permissions for the current user...${normal}"
+echo "\n${yellow}Step 4: Setting file permissions...${normal}"
 # Use SUDO_USER to get the name of the user who invoked sudo
 if [ -n "$SUDO_USER" ]; then
+    echo "Running with sudo. Setting ownership to user '${SUDO_USER}' and permissions for all users."
     chown -R "$SUDO_USER":"$SUDO_USER" .
-    echo "Ownership of all project files set to user '${SUDO_USER}'."
+    # u=rwx: Owner can read, write, and execute.
+    # go=r-x: Group and Others can read and execute, but not write.
+    chmod -R u=rwx,go=r-x .
+    echo "Permissions set successfully."
 else
-    echo "${yellow}Warning: Not running with sudo. Skipping ownership change.${normal}"
+    echo "${yellow}Not running with sudo. Setting permissions for current user only.${normal}"
+    # Grant read, write, and execute permissions to the current user
+    chmod -R u+rwx .
 fi
-# Grant read, write, and execute permissions to the owner
-chmod -R u+rwx .
-echo "User permissions (read/write/execute) set for all project files."
+
 
 # --- Step 5: Create the System-Wide Command ---
 echo "\n${yellow}Step 5: Creating the system-wide '${COMMAND_NAME}' command...${normal}"
@@ -117,6 +121,12 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 echo "Symbolic link created successfully."
+
+# Also set ownership of the symbolic link itself to the original user
+if [ -n "$SUDO_USER" ]; then
+    chown -h "$SUDO_USER":"$SUDO_USER" "$INSTALL_PATH"
+    echo "Ownership of the symbolic link set to user '${SUDO_USER}'."
+fi
 
 # --- Final Summary ---
 echo "\n${bold}${green}--- Fenrir Installation Complete! ---${normal}"
